@@ -1,14 +1,18 @@
 from tkinter import *
 import random
+import time
 
 
 class Ball:
-    def __init__(self, canvas, paddle, color):
+    def __init__(self, canvas, paddle, score, color):
         self.canvas = canvas
         self.paddle = paddle
+        self.score = score
         self.id = canvas.create_oval(10, 10, 25, 25, fill=color)
         self.canvas.move(self.id, 245, 100)
-        self.x = random.choice((-3, -2, -1, 1, 2, 3))
+        starts = [-3, -2, -1, 1, 2, 3]
+        random.shuffle(starts)
+        self.x = starts[0]
         self.y = -3
         self.canvas_height = self.canvas.winfo_height()
         self.canvas_width = self.canvas.winfo_width()
@@ -18,15 +22,16 @@ class Ball:
         paddle_pos = self.canvas.coords(self.paddle.id)
         if pos[2] >= paddle_pos[0] and pos[0] <= paddle_pos[2]:
             if pos[3] >= paddle_pos[1] and pos[3] <= paddle_pos[3]:
+                self.x += self.paddle.x
+                self.score.hit()
                 return True
-
         return False
 
     def draw(self):
         self.canvas.move(self.id, self.x, self.y)
         pos = self.canvas.coords(self.id)
         if pos[1] <= 0:
-            self.y = abs(self.y)
+            self.y = 3
 
         if pos[3] >= self.canvas_height:
             # self.y = abs(self.y) * -1
@@ -36,10 +41,10 @@ class Ball:
             self.x = abs(self.x)
 
         if pos[2] >= self.canvas_width:
-            self.x = abs(self.x) * -1
+            self.x = -3
 
-        if self.hit_paddle(pos):
-            self.y = abs(self.x) * -1
+        if self.hit_paddle(pos) == True:
+            self.y = -3
 
 
 class Paddle:
@@ -49,8 +54,10 @@ class Paddle:
         self.canvas.move(self.id, 200, 300)
         self.x = 0
         self.canvas_width = self.canvas.winfo_width()
+        self.started = False
         self.canvas.bind_all('<KeyPress-Left>', self.turn_left)
         self.canvas.bind_all('<KeyPress-Right>', self.turn_right)
+        self.canvas.bind_all('<Button-1>', self.start_game)
 
     def draw(self):
         self.canvas.move(self.id, self.x, 0)
@@ -61,11 +68,25 @@ class Paddle:
         elif pos[2] >= self.canvas_width:
             self.x = 0
 
-    def turn_left(self, event):
+    def turn_left(self, evt):
         self.x = -2
 
-    def turn_right(self, event):
+    def turn_right(self, evt):
         self.x = 2
+
+    def start_game(self, evt):
+        self.started = True
+
+
+class Score:
+    def __init__(self, canvas, color):
+        self.score = 0
+        self.canvas = canvas
+        self.id = canvas.create_text(450, 10, text=self.score, fill=color)
+
+    def hit(self):
+        self.score += 1
+        self.canvas.itemconfig(self.id, text=self.score)
 
 
 tk = Tk()
@@ -76,19 +97,19 @@ c = Canvas(tk, width=500, height=400, bd=0, highlightthickness=0)
 c.pack()
 tk.update()
 
-p = Paddle(c, 'blue')
-ball = Ball(c, p, 'red')
+score = Score(c, 'green')
+paddle = Paddle(c, 'blue')
+ball = Ball(c, paddle, score, 'red')
+game_over_text = c.create_text(250, 200, text="GAME OVER", state='hidden')
 
-
-def update():
-    if not ball.hit_bottom:
+while True:
+    if ball.hit_bottom == False and paddle.started == True:
         ball.draw()
-        p.draw()
+        paddle.draw()
+    if ball.hit_bottom == True:
+        time.sleep(1)
+        c.itemconfig(game_over_text, state='normal')
 
     tk.update_idletasks()
     tk.update()
-    tk.after(10, update)
-
-
-tk.after(10, update)
-tk.mainloop()
+    time.sleep(0.01)
